@@ -34,7 +34,7 @@ func DiskVFS(root string) (Dir, error) {
 	if !stat.IsDir() {
 		return nil, fmt.Errorf("%v isn't a valid directory", root)
 	}
-	return &diskvfs{root: root, cd: "", isfile: false}, nil
+	return &diskvfs{root: root, cd: root, isfile: false}, nil
 }
 
 func (vfs *diskvfs) Name() string {
@@ -61,14 +61,14 @@ func (vfs *diskvfs) ReadDirs() ([]Dir, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]Dir, len(childs), 0)
+	ret := make([]Dir, 0, len(childs))
 	for _, v := range childs {
 		if !v.IsDir() {
 			continue
 		}
 		ret = append(ret, &diskvfs{
 			root:   vfs.root,
-			cd:     filepath.Join(vfs.cd, f.Name()),
+			cd:     filepath.Join(vfs.cd, v.Name()),
 			isfile: false,
 		})
 	}
@@ -85,14 +85,14 @@ func (vfs *diskvfs) ReadFiles() ([]File, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]File, len(childs), 0)
+	ret := make([]File, 0, len(childs))
 	for _, v := range childs {
 		if v.IsDir() {
 			continue
 		}
 		ret = append(ret, &diskvfs{
 			root:   vfs.root,
-			cd:     filepath.Join(vfs.cd, f.Name()),
+			cd:     filepath.Join(vfs.cd, v.Name()),
 			isfile: true,
 		})
 	}
