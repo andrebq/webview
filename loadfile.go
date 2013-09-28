@@ -39,6 +39,9 @@ type Namer interface {
 	//
 	// Directories MUST NOT include the "/"
 	Name() string
+
+	// Should return if the current item represents a directory
+	IsDir() bool
 }
 
 // A virtual directory
@@ -60,6 +63,20 @@ type File interface {
 	Parenter
 }
 
+// Use to select which files should be parsed as a template
+type Filter interface {
+	// return
+	Filter(f Namer) bool
+}
+
+// Implements the Filter interface
+type FilterFunc func(f Namer) bool
+
+// Call the function
+func (ff FilterFunc) Filter(f Namer) bool {
+	return ff(f)
+}
+
 // Load all files under root and return a root template
 //
 // Each template can be accessed by its full path from root,
@@ -75,21 +92,23 @@ type File interface {
 // calls to t.Execute will result in a empty result
 //
 // You should call t.ExecuteTemplate(reader, "name/of/your/template", data)
-func LoadDir(root Dir, funcs tt.FuncMap) (*template.Template, error) {
+func LoadDir(root Dir, funcs tt.FuncMap, filter Filter) (*template.Template, error) {
 	t, _ := template.New("root").Parse("")
-	return t, LoadDirInto(t, root, funcs)
+	return t, LoadDirInto(t, root, funcs, filter)
 }
 
 // Load all files from the given Dir into the given template
-func LoadDirInto(t *template.Template, dir Dir, funcs tt.FuncMap) error {
+func LoadDirInto(t *template.Template, dir Dir, funcs tt.FuncMap, filter Filter) error {
 	files, err := dir.ReadFiles()
 	if err != nil {
 		return err
 	}
 	for _, file := range files {
-		err = LoadFileInto(t, file, funcs)
-		if err != nil {
-			return err
+		if filter == nil || filter.Filter(file) {
+			err = LoadFileInto(t, file, funcs)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	dirs, err := dir.ReadDirs()
@@ -97,9 +116,11 @@ func LoadDirInto(t *template.Template, dir Dir, funcs tt.FuncMap) error {
 		return err
 	}
 	for _, cdir := range dirs {
-		err = LoadDirInto(t, cdir, funcs)
-		if err != nil {
-			return err
+		if filter == nil || filter.Filter(cdir) {
+			err = LoadDirInto(t, cdir, funcs, filter)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -142,8 +163,8 @@ func TemplateName(f Namer) string {
 			myName = TemplateName(parent) + myName
 		}
 	}
-	if _, ok := f.(Dir); ok {
-		myName = myName + "/"
+	if f.IsDir() && len(myName) > 0 {
+		myName += "/"
 	}
 	return myName
 }
@@ -162,4 +183,18 @@ func DiscoverDelim(name string) (string, string) {
 		return "<%", "%>"
 	}
 	return "{{", "}}"
+}
+
+// Filter function that allow only html,(js/json) and css files
+//
+// All directories are allowed too
+func AllowHtmlJsAndCss(f Namer) bool {
+	if f.IsDir() {
+		return true
+	}
+	n := f.Name()
+	return strings.HasSuffix(n, ".html") ||
+		strings.HasSuffix(n, ".js") ||
+		strings.HasSuffix(n, ".json") ||
+		strings.HasSuffix(n, ".css")
 }

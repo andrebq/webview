@@ -37,6 +37,10 @@ func DiskVFS(root string) (Dir, error) {
 	return &diskvfs{root: root, cd: root, isfile: false}, nil
 }
 
+func (vfs *diskvfs) IsDir() bool {
+	return !vfs.isfile
+}
+
 func (vfs *diskvfs) Name() string {
 	if strings.EqualFold(vfs.root, vfs.cd) {
 		return ""
@@ -69,7 +73,7 @@ func (vfs *diskvfs) ReadDirs() ([]Dir, error) {
 		ret = append(ret, &diskvfs{
 			root:   vfs.root,
 			cd:     filepath.Join(vfs.cd, v.Name()),
-			isfile: false,
+			isfile: !v.IsDir(),
 		})
 	}
 	return ret, nil
@@ -93,7 +97,7 @@ func (vfs *diskvfs) ReadFiles() ([]File, error) {
 		ret = append(ret, &diskvfs{
 			root:   vfs.root,
 			cd:     filepath.Join(vfs.cd, v.Name()),
-			isfile: true,
+			isfile: !v.IsDir(),
 		})
 	}
 	return ret, nil

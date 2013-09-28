@@ -34,9 +34,18 @@ func TestDiskVFS(t *testing.T) {
 	if len(files) == 0 {
 		t.Fatalf("files cannot be empty")
 	}
+	if !vfs.IsDir() {
+		t.Errorf("root should always be a directory")
+	}
 
 	if files[0].Name() != "index.html" {
 		t.Errorf("name should be index.html but got %v", files[0].Name())
+	}
+
+	for _, v := range files {
+		if v.IsDir() {
+			t.Errorf("the files array should have only files not directories")
+		}
 	}
 
 	dirs, err := vfs.ReadDirs()
@@ -49,6 +58,11 @@ func TestDiskVFS(t *testing.T) {
 
 	if dirs[0].Name() != "layout" {
 		t.Errorf("name should be layout but got %v", dirs[0].Name())
+	}
+	for _, v := range dirs {
+		if !v.IsDir() {
+			t.Errorf("the dirs array should have only directories not files")
+		}
 	}
 
 	files, err = dirs[0].ReadFiles()
