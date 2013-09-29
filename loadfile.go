@@ -55,6 +55,9 @@ type Dir interface {
 	ReadDirs() ([]Dir, error)
 }
 
+// A set of compiled templates
+type TreeSet map[string]*parse.Tree
+
 // A virtual file
 type File interface {
 	Namer
@@ -77,28 +80,47 @@ func (ff FilterFunc) Filter(f Namer) bool {
 	return ff(f)
 }
 
-// Load all files under root and return a root template
+// Return a new template containing all templates
+// from set.
+//
+// The alias map can be used to access one template
+// with two names
+func Template(set TreeSet, alias map[string]string) (*template.Template, error) {
+	t, _ := template.New("_root").Parse("")
+	for k, v := range set {
+		if _, err := t.AddParseTree(k, v); err != nil {
+			return t, err
+		}
+	}
+	for k, v := range alias {
+		if tree, has := set[v]; has {
+			if _, err := t.AddParseTree(k, tree); err != nil {
+				return t, err
+			}
+		}
+	}
+	return t, nil
+}
+
+// Load all files under root and return a set of all templates
+// if two templates have the same name (let's say that file a.html
+// and b.html both define the template "nice_button"). Only one
+// of those definitions will be available (the last one returned by
+// the vfs)
 //
 // Each template can be accessed by its full path from root,
 // that means "layout/body.html" represents a file under
 // "layout" with a name of "body.html"
 //
-// This function is equivalent to
-//
-//	t, _ := template.New("root").Parse("")
-//	return t, LoadDirInto(t, root)
-//
 // This means you cannot have a template named root, and all
 // calls to t.Execute will result in a empty result
-//
-// You should call t.ExecuteTemplate(reader, "name/of/your/template", data)
-func LoadDir(root Dir, funcs tt.FuncMap, filter Filter) (*template.Template, error) {
-	t, _ := template.New("root").Parse("")
-	return t, LoadDirInto(t, root, funcs, filter)
+func LoadDir(root Dir, funcs tt.FuncMap, filter Filter) (TreeSet, error) {
+	set := make(TreeSet)
+	return set, LoadDirInto(set, root, funcs, filter)
 }
 
 // Load all files from the given Dir into the given template
-func LoadDirInto(t *template.Template, dir Dir, funcs tt.FuncMap, filter Filter) error {
+func LoadDirInto(t TreeSet, dir Dir, funcs tt.FuncMap, filter Filter) error {
 	files, err := dir.ReadFiles()
 	if err != nil {
 		return err
@@ -129,7 +151,7 @@ func LoadDirInto(t *template.Template, dir Dir, funcs tt.FuncMap, filter Filter)
 // Read a file and register a new template under the filename
 //
 // The name is given by TemplateName(f)
-func LoadFileInto(t *template.Template, f File, funcs tt.FuncMap) error {
+func LoadFileInto(t TreeSet, f File, funcs tt.FuncMap) error {
 	name := TemplateName(f)
 	contents, err := f.Contents()
 	if err != nil {
@@ -147,8 +169,10 @@ func LoadFileInto(t *template.Template, f File, funcs tt.FuncMap) error {
 	if err != nil {
 		return err
 	}
-	_, err = t.AddParseTree(name, treeSet[name])
-	return err
+	for k, v := range treeSet {
+		t[k] = v
+	}
+	return nil
 }
 
 // Return the unique name of the object.

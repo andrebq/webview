@@ -28,13 +28,20 @@ func TestLoadDir(t *testing.T) {
 		t.Fatalf("unable to load vfs dir %v", err)
 	}
 
-	tmpl, err := LoadDir(vfs, nil, FilterFunc(AllowHtmlJsAndCss))
+	set, err := LoadDir(vfs, nil, FilterFunc(AllowHtmlJsAndCss))
 	if err != nil {
 		t.Fatalf("unable to load template %v", err)
 	}
 
+	tmpl, err := Template(set, map[string]string{"main": "index.html"})
+
 	err = tmpl.ExecuteTemplate(ioutil.Discard, "index.html", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error while rendering template %v", err)
+	}
+
+	err = tmpl.ExecuteTemplate(ioutil.Discard, "main", nil)
+	if err != nil {
+		t.Errorf("unable to render using alias %v", err)
 	}
 }
