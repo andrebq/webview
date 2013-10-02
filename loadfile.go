@@ -107,7 +107,7 @@ func (ff FilterFunc) Filter(f Namer) bool {
 //	}
 //
 // When you execute the template, instead of having a "template contents not found"
-// the system will execute the "index/index.html" template and put it's result
+// the system will execute the "index/index.html" template and put its result
 // on "layout/main.html"
 //
 // This keeps all the safety from html/template but enable your to use more
