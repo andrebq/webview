@@ -84,7 +84,37 @@ func (ff FilterFunc) Filter(f Namer) bool {
 // from set.
 //
 // The alias map can be used to access one template
-// with two names
+// with two or more names
+//
+// Consider this:
+//
+// 	layout/main.html
+//	The contents come from {{ template "contents" }}
+//
+//	index/index.html
+//	I have the contents
+//
+//	user/index.html
+//	I also have the contents
+//
+// If you loaded all those files, you have a treeSet with three
+// templates: "layout/main.html", "index/index.html" and "user/index.html"
+//
+// Now you can use the alias to map "index/index.html" to "contents"
+//
+//	alias := map[string]string {
+//		"contents": "index/index.html"
+//	}
+//
+// When you execute the template, instead of having a "template contents not found"
+// the system will execute the "index/index.html" template and put it's result
+// on "layout/main.html"
+//
+// This keeps all the safety from html/template but enable your to use more
+// dynamic templates without having to parse them every single time.
+//
+// If you need a new template with a different alias, just call this function again
+// passing a different alias map
 func Template(set TreeSet, alias map[string]string) (*template.Template, error) {
 	t, _ := template.New("_root").Parse("")
 	for k, v := range set {
@@ -111,9 +141,6 @@ func Template(set TreeSet, alias map[string]string) (*template.Template, error) 
 // Each template can be accessed by its full path from root,
 // that means "layout/body.html" represents a file under
 // "layout" with a name of "body.html"
-//
-// This means you cannot have a template named root, and all
-// calls to t.Execute will result in a empty result
 func LoadDir(root Dir, funcs tt.FuncMap, filter Filter) (TreeSet, error) {
 	set := make(TreeSet)
 	return set, LoadDirInto(set, root, funcs, filter)
