@@ -87,9 +87,19 @@ func Render(w http.ResponseWriter, req *http.Request) {
 func RenderView(w http.ResponseWriter, req *http.Request, name string, data interface{}) error {
 	if tree, ok := context.GetOk(req, treeSetKey); ok {
 		alias := GetAliasMap(req)
+		provideDefaults(alias, req)
 		return renderViewFromTreeSet(w, req, tree.(webview.TreeSet), alias, "main", data)
 	} else {
 		return fmt.Errorf("webview treeset not found. are your sure you called RegisterView")
+	}
+}
+
+func provideDefaults(alias map[string]string, req *http.Request) {
+	if _, has := alias["main"]; !has {
+		alias["main"] = GetLayoutName(req)
+	}
+	if _, has := alias["contents"]; !has {
+		alias["contents"] = GetViewName(req)
 	}
 }
 
@@ -101,10 +111,12 @@ func SetAliasMap(req *http.Request, alias map[string]string) {
 // Get the alias that will be used to render the template
 func GetAliasMap(req *http.Request) map[string]string {
 	if v, ok := context.GetOk(req, aliasMapKey); !ok {
-		return map[string]string{
+		alias := map[string]string{
 			"contents": GetViewName(req),
 			"main":     GetLayoutName(req),
 		}
+		SetAliasMap(req, alias)
+		return alias
 	} else {
 		return v.(map[string]string)
 	}
