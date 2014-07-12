@@ -83,7 +83,7 @@ type Compiler struct {
 //
 // input should be separated by "/" instead of "\\" on Windows,
 func (c *Compiler) Compile(out io.Writer, input string) error {
-	input, err := c.findFile(input)
+	input, err := c.FindFile(input)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (c *Compiler) Runtime(out io.Writer) error {
 	return err
 }
 
-func (c *Compiler) findFile(in string) (string, error) {
+func (c *Compiler) FindFile(in string) (string, error) {
 	fs := gas.FromDirs(c.Dir)
 	return fs.Abs(c.stripPrefix(in), false)
 }
@@ -196,7 +196,22 @@ func (r *Regenerator) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	} else if strings.HasSuffix(req.URL.Path, ".js") {
 		err := r.Compile(w, req.URL.Path)
 		if err != nil {
-			panic(err)
+			if gas.IsNotFound(err) {
+				http.Error(w, "not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+	}
+}
+
+func New(prefix, regenerator string, dirs []string, args ...string) *Regenerator {
+	return &Regenerator{
+		Compiler{
+			Prefix:            prefix,
+			Dir:               dirs,
+			Regenerator:       regenerator,
+			RegeneratorParams: args,
+		},
 	}
 }
